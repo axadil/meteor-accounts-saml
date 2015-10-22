@@ -249,8 +249,11 @@ middleware = function (req, res, next) {
                 var credentialToken = profile.inResponseToId || profile.InResponseTo || samlObject.credentialToken;
                 if (!credentialToken)
                     throw new Error("Unable to determine credentialToken");
+
+                cleaned_profile = profile
+                cleaned_profile['issuer'] = undefined;
                 Accounts.saml._loginResultForCredentialToken[credentialToken] = {
-                    profile: profile
+                    profile: cleaned_profile
                 };
                 closePopup(res);
             });

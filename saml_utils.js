@@ -95,10 +95,14 @@ SAML.prototype.generateAuthorizeRequest = function (req) {
             "\" AllowCreate=\"true\"></samlp:NameIDPolicy>\n";
     }
 
-    request +=
-        "<samlp:RequestedAuthnContext xmlns:samlp=\"urn:oasis:names:tc:SAML:2.0:protocol\" Comparison=\"exact\">" +
-        "<saml:AuthnContextClassRef xmlns:saml=\"urn:oasis:names:tc:SAML:2.0:assertion\">urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport</saml:AuthnContextClassRef></samlp:RequestedAuthnContext>\n" +
-        "</samlp:AuthnRequest>";
+    if (this.options.authnContext) {
+        request +=
+            "<samlp:RequestedAuthnContext xmlns:samlp=\"urn:oasis:names:tc:SAML:2.0:protocol\" Comparison=\"exact\">" +
+            "<saml:AuthnContextClassRef xmlns:saml=\"urn:oasis:names:tc:SAML:2.0:assertion\">" + this.options.authnContext + 
+            "</saml:AuthnContextClassRef></samlp:RequestedAuthnContext>\n"
+    }
+
+    request += "</samlp:AuthnRequest>";
 
 
     return request;
@@ -180,7 +184,7 @@ SAML.prototype.requestToUrl = function (request, operation, callback) {
             // in case of logout we want to be redirected back to the Meteor app.
             var relayState = Meteor.absoluteUrl();
         } else {
-            var relayState = self.options.provider;
+            var relayState = self.options.relay_state;
         }
         target += querystring.stringify(samlRequest) + "&RelayState=" + relayState;
 
@@ -260,6 +264,8 @@ SAML.prototype.getElement = function (parentElement, elementName) {
         return parentElement['saml2p:' + elementName];
     } else if (parentElement['saml2:' + elementName]) {
         return parentElement['saml2:' + elementName];
+    } else if (parentElement['ns2:' + elementName]) {
+        return parentElement['ns2:' + elementName]; 
     }
     return parentElement[elementName];
 }
