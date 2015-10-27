@@ -205,6 +205,10 @@ SAML.prototype.requestToUrl = function (request, operation, callback) {
 SAML.prototype.getAuthorizeUrl = function (req, callback) {
     var request = this.generateAuthorizeRequest(req);
 
+    if (Meteor.settings.debug) {
+        console.log("request XML: " + request);
+    }
+
     this.requestToUrl(request, 'authorize', callback);
 };
 
@@ -344,10 +348,10 @@ SAML.prototype.validateResponse = function (samlResponse, relayState, callback) 
             console.log("Signature OK");
         }
         var response = self.getElement(doc, 'Response');
-        if (Meteor.settings.debug) {
-            console.log("Got response");
-        }
         if (response) {
+            if (Meteor.settings.debug) {
+                console.log("Got response");
+            }
             var assertion = self.getElement(response, 'Assertion');
             if (!assertion) {
                 return callback(new Error('Missing SAML assertion'), null, false);
@@ -380,6 +384,9 @@ SAML.prototype.validateResponse = function (samlResponse, relayState, callback) 
             var authnStatement = self.getElement(assertion[0], 'AuthnStatement');
 
             if (authnStatement) {
+                if (Meteor.settings.debug) {
+                    console.log("Got auth statement");
+                }
                 if (authnStatement[0]['$'].SessionIndex) {
 
                     profile.sessionIndex = authnStatement[0]['$'].SessionIndex;
@@ -427,9 +434,7 @@ SAML.prototype.validateResponse = function (samlResponse, relayState, callback) 
             if (!profile.email && profile.nameID && profile.nameIDFormat && profile.nameIDFormat.indexOf('emailAddress') >= 0) {
                 profile.email = profile.nameID;
             }
-            if (Meteor.settings.debug) {
-                console.log("NameID: " + JSON.stringify(profile));
-            }
+            console.log("[Meteor SAML] NameID returned from auth provider: " + JSON.stringify(profile))
 
             callback(null, profile, false);
         } else {

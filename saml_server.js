@@ -68,7 +68,7 @@ Accounts.registerLoginHandler(function (loginRequest) {
     }
     var loginResult = Accounts.saml.retrieveCredential(loginRequest.credentialToken);
     if (Meteor.settings.debug) {
-    console.log("RESULT :" + JSON.stringify(loginResult));
+        console.log("RESULT :" + JSON.stringify(loginResult));
     }
     if (loginResult && loginResult.profile && loginResult.profile.email) {
         var user = Meteor.users.findOne({
@@ -108,6 +108,8 @@ Accounts.registerLoginHandler(function (loginRequest) {
             userId: user._id,
             token: stampedToken.token
         };
+
+        console.log("[Meteor SAML] User succesfully logged in");
 
         return result
 
@@ -227,6 +229,7 @@ middleware = function (req, res, next) {
             res.end();
             break;
         case "authorize":
+            console.log("[Meteor SAML] Authorize url requested")
             service.callbackUrl = Meteor.absoluteUrl("_saml/validate/" + service.provider);
             service.id = samlObject.credentialToken;
             _saml = new SAML(service);
@@ -240,8 +243,16 @@ middleware = function (req, res, next) {
             });
             break;
         case "validate":
+            if (Meteor.settings.debug) {
+                console.log('Validate url requested');
+            }
             _saml = new SAML(service);
+
             Accounts.saml.RelayState = req.body.RelayState;
+            if (Meteor.settings.debug) {
+                console.log('Relay state: ' + Accounts.saml.RelayState);
+            }
+
             _saml.validateResponse(req.body.SAMLResponse, req.body.RelayState, function (err, profile, loggedOut) {
                 if (err)
                     throw new Error("Unable to validate response url: " + err);
@@ -255,6 +266,10 @@ middleware = function (req, res, next) {
                 Accounts.saml._loginResultForCredentialToken[credentialToken] = {
                     profile: cleaned_profile
                 };
+
+                if (Meteor.settings.debug) {
+                    console.log('No validation errors, closing popup');
+                }
                 closePopup(res);
             });
             break;
@@ -285,7 +300,7 @@ var samlUrlToObject = function (url) {
         credentialToken: splitPath[4]
     };
     if (Meteor.settings.debug) {
-    console.log(result);
+        console.log('Url params: ' + JSON.stringify(result));
     }
     return result;
 };
