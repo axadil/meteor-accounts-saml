@@ -10,15 +10,19 @@ Meteor.methods({
     samlLogout: function (provider) {
         // Make sure the user is logged in before initiate SAML SLO
         if (!Meteor.userId()) {
-            throw new Meteor.Error("not-authorized");
+            throw new Meteor.Error("[ SAML ] Logout: Not-authorized");
         }
+        if(Meteor.settings.debug >= 1) {
+            console.log("[ SAML ] Logout request for " . Meteor.userId());
+        }
+
         var samlProvider = function (element) {
             return (element.provider == provider)
         }
         providerConfig = Meteor.settings.saml.filter(samlProvider)[0];
 
-        if (Meteor.settings.debug) {
-            console.log("Logout request from " + JSON.stringify(providerConfig));
+        if (Meteor.settings.debug >= 3) {
+            console.log("[ SAML ] Logout request from " + JSON.stringify(providerConfig));
         }
         // This query should respect upcoming array of SAML logins
         var user = Meteor.users.findOne({
@@ -29,8 +33,8 @@ Meteor.methods({
         });
         var nameID = user.services.saml.nameID;
         var sessionIndex = nameID = user.services.saml.idpSession;
-        if (Meteor.settings.debug) {
-            console.log("NameID for user " + Meteor.userId() + " found: " + JSON.stringify(nameID));
+        if (Meteor.settings.debug >= 3) {
+            console.log("[ SAML ] NameID found: " + JSON.stringify(nameID));
         }
 
         _saml = new SAML(providerConfig);
@@ -53,8 +57,8 @@ Meteor.methods({
 
         var _syncRequestToUrl = Meteor.wrapAsync(_saml.requestToUrl, _saml);
         var result = _syncRequestToUrl(request.request, "logout");
-        if (Meteor.settings.debug) {
-            console.log("SAML Logout Request " + result);
+        if (Meteor.settings.debug >= 3) {
+            console.log("[ SAML ] Logout result " + result);
         }
 
 
@@ -64,19 +68,30 @@ Meteor.methods({
 
 Accounts.registerLoginHandler(function (loginRequest) {
     if (!loginRequest.saml || !loginRequest.credentialToken) {
+        if (Meteor.settings.debug >= 2) {
+            console.log("[ SAML ] Login request, with empty SAML and empty token. Request cancelled.");
+        }
         return undefined;
     }
-    var loginResult = Accounts.saml.retrieveCredential(loginRequest.credentialToken);
-    if (Meteor.settings.debug) {
-        console.log("RESULT :" + JSON.stringify(loginResult));
+
+    if (Meteor.settings.debug >= 2) {
+        console.log("[ SAML ] Processing login request");
     }
+
+    var loginResult = Accounts.saml.retrieveCredential(loginRequest.credentialToken);
+
+    if (Meteor.settings.debug >= 3) {
+        console.log("[ SAML ] Login result:" + JSON.stringify(loginResult, null, '  '));
+    }
+
     if (loginResult && loginResult.profile && loginResult.profile.email) {
         var user = Meteor.users.findOne({
             'emails.address': loginResult.profile.email
         });
 
-        if (!user)
-            throw new Error("Could not find an existing user with supplied email " + loginResult.profile.email);
+        if (!user) {
+            throw new Error("[ SAML ] Failed authentication for " + loginResult.profile.email + " (unknown user)");
+        }
 
 
         //creating the token and adding to the user
@@ -109,12 +124,12 @@ Accounts.registerLoginHandler(function (loginRequest) {
             token: stampedToken.token
         };
 
-        console.log("[Meteor SAML] User succesfully logged in");
+        console.log("[ SAML ] Successful authentication for " + loginResult.profile.email);
 
         return result
 
     } else {
-        throw new Error("SAML Profile did not contain an email address");
+        throw new Error("[ SAML ] Profile contains no email address");
     }
 });
 
@@ -153,7 +168,7 @@ middleware = function (req, res, next) {
         }
 
         if (!samlObject.actionName)
-            throw new Error("Missing SAML action");
+            throw new Error("[ SAML ] Missing SAML action");
 
         var service = _.find(Meteor.settings.saml, function (samlSetting) {
             return samlSetting.provider === samlObject.serviceName;
@@ -161,7 +176,11 @@ middleware = function (req, res, next) {
 
         // Skip everything if there's no service set by the saml middleware
         if (!service)
-            throw new Error("Unexpected SAML service " + samlObject.serviceName);
+            throw new Error("[ SAML ] Unexpected SAML service " + samlObject.serviceName);
+
+        if ( Meteor.settings.debug >= 2 ) {
+            console.log("[ SAML ] Processing action: " + samlObject.actionName);
+        }
         switch (samlObject.actionName) {
         case "metadata":
             _saml = new SAML(service);
@@ -178,7 +197,7 @@ middleware = function (req, res, next) {
                 if (!err) {
                     var logOutUser = function (inResponseTo) {
                         if (Meteor.settings.debug) {
-                        console.log("Logging Out user via inResponseTo " + inResponseTo);
+                            console.log("Logging Out user via inResponseTo " + inResponseTo);
                         }
                         var loggedOutUser = Meteor.users.find({
                             'services.saml.inResponseTo': inResponseTo
@@ -202,7 +221,7 @@ middleware = function (req, res, next) {
                                 }
                             });
                         } else {
-                            throw new Meteor.error("Found multiple users matching SAML inResponseTo fields");
+                            throw new Meteor.error("[ SAML ] Found multiple users matching SAML inResponseTo fields");
                         }
                     }
 
@@ -235,7 +254,7 @@ middleware = function (req, res, next) {
             _saml = new SAML(service);
             _saml.getAuthorizeUrl(req, function (err, url) {
                 if (err)
-                    throw new Error("Unable to generate authorize url");
+                    throw new Error("[ SAML ] Unable to generate authorize url");
                 res.writeHead(302, {
                     'Location': url
                 });
@@ -243,23 +262,21 @@ middleware = function (req, res, next) {
             });
             break;
         case "validate":
-            if (Meteor.settings.debug) {
-                console.log('Validate url requested');
-            }
             _saml = new SAML(service);
 
             Accounts.saml.RelayState = req.body.RelayState;
-            if (Meteor.settings.debug) {
-                console.log('Relay state: ' + Accounts.saml.RelayState);
+            
+            if (Meteor.settings.debug >= 3) {
+                console.log('[ SAML ] Validation relayState: ' + Accounts.saml.RelayState);
             }
 
             _saml.validateResponse(req.body.SAMLResponse, req.body.RelayState, function (err, profile, loggedOut) {
                 if (err)
-                    throw new Error("Unable to validate response url: " + err);
+                    throw new Error("[ SAML ] Unable to validate response url: " + err);
 
                 var credentialToken = profile.inResponseToId || profile.InResponseTo || samlObject.credentialToken;
                 if (!credentialToken)
-                    throw new Error("Unable to determine credentialToken");
+                    throw new Error("[ SAML ] Unable to determine credentialToken");
 
                 cleaned_profile = profile
                 cleaned_profile['issuer'] = undefined;
@@ -267,14 +284,14 @@ middleware = function (req, res, next) {
                     profile: cleaned_profile
                 };
 
-                if (Meteor.settings.debug) {
-                    console.log('No validation errors, closing popup');
+                if (Meteor.settings.debug >= 2) {
+                    console.log('[ SAML ] Validation OK');
                 }
                 closePopup(res);
             });
             break;
         default:
-            throw new Error("Unexpected SAML action " + samlObject.actionName);
+            throw new Error("[ SAML ] Unexpected SAML action " + samlObject.actionName);
 
         }
     } catch (err) {
@@ -286,6 +303,10 @@ var samlUrlToObject = function (url) {
     // req.url will be "/_saml/<action>/<service name>/<credentialToken>"
     if (!url)
         return null;
+
+    if(Meteor.settings.debug >= 3) {
+        console.log("[ SAML ] URL to object, url: " + url);
+    }
 
     var splitPath = url.split('/');
 
@@ -299,8 +320,8 @@ var samlUrlToObject = function (url) {
         serviceName: splitPath[3],
         credentialToken: splitPath[4]
     };
-    if (Meteor.settings.debug) {
-        console.log('Url params: ' + JSON.stringify(result));
+    if (Meteor.settings.debug >= 3) {
+        console.log('[ SAML ] URL to object, params: ' + JSON.stringify(result));
     }
     return result;
 };

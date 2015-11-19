@@ -40,4 +40,4 @@ settings.localhost = {
             ]
     }
 Meteor.settings = settings.localhost;
-Meteor.settings.debug = true;
+Meteor.settings.debug = 0;

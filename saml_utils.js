@@ -138,9 +138,8 @@ SAML.prototype.generateLogoutRequest = function (options) {
         options.nameID + "</saml:NameID>" +
         "<samlp:SessionIndex xmlns:samlp=\"urn:oasis:names:tc:SAML:2.0:protocol\">" + options.sessionIndex + "</samlp:SessionIndex>" +
         "</samlp:LogoutRequest>";
-    if (Meteor.settings.debug) {
-        console.log("------- SAML Logout request -----------");
-        console.log(request);
+    if (Meteor.settings.debug >= 3) {
+        console.log("[ SAML ] Logout request: " + request);
     }
     return {
         request: request,
@@ -151,6 +150,13 @@ SAML.prototype.generateLogoutRequest = function (options) {
 SAML.prototype.requestToUrl = function (request, operation, callback) {
     var self = this;
     var result;
+
+    if(Meteor.settings.debug >= 2) {
+        console.log("[ SAML ] Request to URL: " + operation);
+    }
+    if(Meteor.settings.debug >= 3) {
+        console.log("[ SAML ] Request to URL, request content: " + JSON.stringify(request));
+    }
     zlib.deflateRaw(request, function (err, buffer) {
         if (err) {
             return callback(err);
@@ -188,8 +194,8 @@ SAML.prototype.requestToUrl = function (request, operation, callback) {
         }
         target += querystring.stringify(samlRequest) + "&RelayState=" + relayState;
 
-        if (Meteor.settings.debug) {
-            console.log("requestToUrl: " + target);
+        if (Meteor.settings.debug >= 3) {
+            console.log("[ SAML ] Target URL: " + target);
         }
         if (operation === 'logout') {
             // in case of logout we want to be redirected back to the Meteor app.
@@ -205,8 +211,8 @@ SAML.prototype.requestToUrl = function (request, operation, callback) {
 SAML.prototype.getAuthorizeUrl = function (req, callback) {
     var request = this.generateAuthorizeRequest(req);
 
-    if (Meteor.settings.debug) {
-        console.log("request XML: " + request);
+    if (Meteor.settings.debug >= 3) {
+        console.log("[ SAML ] XML Request: " + request);
     }
 
     this.requestToUrl(request, 'authorize', callback);
@@ -281,8 +287,8 @@ SAML.prototype.validateLogoutResponse = function (samlResponse, callback) {
     zlib.inflateRaw(compressedSAMLResponse, function (err, decoded) {
 
         if (err) {
-            if (Meteor.settings.debug) {
-                console.log(err)
+            if (Meteor.settings.debug >= 1) {
+                console.log("[ SAML ] Inflate SAML response failed: " + err)
             }
         } else {
             var parser = new xml2js.Parser({
@@ -294,13 +300,13 @@ SAML.prototype.validateLogoutResponse = function (samlResponse, callback) {
                 if (response) {
                     // TBD. Check if this msg corresponds to one we sent
                     var inResponseTo = response['$'].InResponseTo;
-                    if (Meteor.settings.debug) {
-                        console.log("In Response to: " + inResponseTo);
+                    if (Meteor.settings.debug >= 3) {
+                        console.log("[ SAML ] In Response to: " + inResponseTo);
                     }
                     var status = self.getElement(response, 'Status');
                     var statusCode = self.getElement(status[0], 'StatusCode')[0]['$'].Value;
-                    if (Meteor.settings.debug) {
-                        console.log("StatusCode: " + JSON.stringify(statusCode));
+                    if (Meteor.settings.debug >= 3) {
+                        console.log("[ SAML ] StatusCode: " + JSON.stringify(statusCode));
                     }
                     if (statusCode === 'urn:oasis:names:tc:SAML:2.0:status:Success') {
                         // In case of a successful logout at IDP we return inResponseTo value.
@@ -326,8 +332,11 @@ SAML.prototype.validateResponse = function (samlResponse, relayState, callback) 
     var self = this;
     var xml = new Buffer(samlResponse, 'base64').toString('ascii');
     // We currently use RelayState to save SAML provider
-    if (Meteor.settings.debug) {
-        console.log("Validating response with relay state: " + xml);
+    if (Meteor.settings.debug >= 2) {
+        console.log("[ SAML ] Response validation")
+        if (Meteor.settings.debug >= 3) {
+            console.log("[ SAML ] ... with relay state: " + xml);
+        }
     }
     var parser = new xml2js.Parser({
         explicitRoot: true
@@ -335,22 +344,22 @@ SAML.prototype.validateResponse = function (samlResponse, relayState, callback) 
 
     parser.parseString(xml, function (err, doc) {
         // Verify signature
-        if (Meteor.settings.debug) {
-            console.log("Verify signature");
+        if (Meteor.settings.debug >= 2) {
+            console.log("[ SAML ] Signature verification");
         }
         if (self.options.cert && !self.validateSignature(xml, self.options.cert)) {
-            if (Meteor.settings.debug) {
-                console.log("Signature WRONG");
+            if (Meteor.settings.debug >= 3 ) {
+                console.log("[ SAML ] Signature is INVALID");
             }
             return callback(new Error('Invalid signature'), null, false);
         }
-        if (Meteor.settings.debug) {
-            console.log("Signature OK");
+        if (Meteor.settings.debug >= 3) {
+            console.log("[ SAML ] Signature is OK");
         }
         var response = self.getElement(doc, 'Response');
         if (response) {
-            if (Meteor.settings.debug) {
-                console.log("Got response");
+            if (Meteor.settings.debug >= 2) {
+                console.log("[ SAML ] Got response");
             }
             var assertion = self.getElement(response, 'Assertion');
             if (!assertion) {
@@ -384,25 +393,25 @@ SAML.prototype.validateResponse = function (samlResponse, relayState, callback) 
             var authnStatement = self.getElement(assertion[0], 'AuthnStatement');
 
             if (authnStatement) {
-                if (Meteor.settings.debug) {
-                    console.log("Got auth statement");
+                if (Meteor.settings.debug >= 2) {
+                    console.log("[ SAML ] Got AuthnStatement");
                 }
                 if (authnStatement[0]['$'].SessionIndex) {
 
                     profile.sessionIndex = authnStatement[0]['$'].SessionIndex;
-                    if (Meteor.settings.debug) {
-                        console.log("Session Index: " + profile.sessionIndex);
+                    if (Meteor.settings.debug >= 3) {
+                        console.log("[ SAML ] Session Index: " + profile.sessionIndex);
                     }
                 } else {
-                    if (Meteor.settings.debug) {
-                        console.log("No Session Index Found");
+                    if (Meteor.settings.debug >= 3) {
+                        console.log("[ SAML ] No Session Index Found");
                     }
                 }
 
 
             } else {
-                if (Meteor.settings.debug) {
-                    console.log("No AuthN Statement found");
+                if (Meteor.settings.debug >= 2) {
+                    console.log("[ SAML ] No AuthN Statement found");
                 }
             }
 
@@ -434,10 +443,17 @@ SAML.prototype.validateResponse = function (samlResponse, relayState, callback) 
             if (!profile.email && profile.nameID && profile.nameIDFormat && profile.nameIDFormat.indexOf('emailAddress') >= 0) {
                 profile.email = profile.nameID;
             }
-            console.log("[Meteor SAML] NameID returned from auth provider: " + JSON.stringify(profile))
+
+            if(Meteor.settings.debug >= 3) {
+                console.log("[ SAML ] Profile returned from auth provider: " + JSON.stringify(profile))
+            }
 
             callback(null, profile, false);
         } else {
+            if (Meteor.settings.debug >= 2) {
+                console.log("[ SAML ] Got NO response");
+            }
+
             var logoutResponse = self.getElement(doc, 'LogoutResponse');
 
             if (logoutResponse) {
@@ -464,7 +480,7 @@ SAML.prototype.generateServiceProviderMetadata = function (callbackUrl) {
     if (this.options.privateKey) {
         if (!decryptionCert) {
             throw new Error(
-                "Missing decryptionCert while generating metadata for decrypting service provider");
+                "[ SAML ] Missing decryptionCert while generating metadata for decrypting service provider");
         }
 
         decryptionCert = decryptionCert.replace(/-+BEGIN CERTIFICATE-+\r?\n?/, '');
@@ -502,7 +518,7 @@ SAML.prototype.generateServiceProviderMetadata = function (callbackUrl) {
 
     if (!this.options.callbackUrl && !callbackUrl) {
         throw new Error(
-            "Unable to generate service provider metadata when callbackUrl option is not set");
+            "[ SAML ] Unable to generate service provider metadata when callbackUrl option is not set");
     }
 
     var metadata = {
