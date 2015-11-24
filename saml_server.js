@@ -248,7 +248,6 @@ middleware = function (req, res, next) {
             res.end();
             break;
         case "authorize":
-            console.log("[Meteor SAML] Authorize url requested")
             service.callbackUrl = Meteor.absoluteUrl("_saml/validate/" + service.provider);
             service.id = samlObject.credentialToken;
             _saml = new SAML(service);
@@ -262,14 +261,14 @@ middleware = function (req, res, next) {
             });
             break;
         case "validate":
+            if (Meteor.settings.debug >= 3) {
+              console.log('[ SAML ] Request body: ' + JSON.stringify(req.body));
+            }
+
             _saml = new SAML(service);
 
             Accounts.saml.RelayState = req.body.RelayState;
             
-            if (Meteor.settings.debug >= 3) {
-                console.log('[ SAML ] Validation relayState: ' + Accounts.saml.RelayState);
-            }
-
             _saml.validateResponse(req.body.SAMLResponse, req.body.RelayState, function (err, profile, loggedOut) {
                 if (err)
                     throw new Error("[ SAML ] Unable to validate response url: " + err);

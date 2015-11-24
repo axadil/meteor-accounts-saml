@@ -84,9 +84,15 @@ SAML.prototype.generateAuthorizeRequest = function (req) {
     if (this.options.id)
         id = this.options.id;
 
+    if (this.options.assertionConsumerServiceIndex !== undefined) {
+        var assertionConsumerService = '"assertionConsumerServiceIndex"=' + this.options.assertionConsumerServiceIndex;
+    } else {
+        var assertionConsumerService = '"assertionConsumerServiceURL"=' + callbackUrl;
+    }
+
     var request =
         "<samlp:AuthnRequest xmlns:samlp=\"urn:oasis:names:tc:SAML:2.0:protocol\" ID=\"" + id + "\" Version=\"2.0\" IssueInstant=\"" + instant +
-        "\" ProtocolBinding=\"urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST\" AssertionConsumerServiceURL=\"" + callbackUrl + "\" Destination=\"" +
+        "\" ProtocolBinding=\"urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST\" " + assertionConsumerService + " Destination=\"" +
         this.options.entryPoint + "\">" +
         "<saml:Issuer xmlns:saml=\"urn:oasis:names:tc:SAML:2.0:assertion\">" + this.options.issuer + "</saml:Issuer>\n";
 
@@ -117,14 +123,7 @@ SAML.prototype.generateLogoutRequest = function (options) {
     var id = "_" + this.generateUniqueID();
     var instant = this.generateInstant();
 
-    var request = "<samlp:LogoutRequest xmlns:samlp=\"urn:oasis:names:tc:SAML:2.0:protocol\" " +
-        "xmlns:saml=\"urn:oasis:names:tc:SAML:2.0:assertion\" ID=\"" + id + "\" Version=\"2.0\" IssueInstant=\"" + instant +
-        "\" Destination=\"" + this.options.idpSLORedirectURL + "\">" +
-        "<saml:Issuer xmlns:saml=\"urn:oasis:names:tc:SAML:2.0:assertion\">" + this.options.issuer + "</saml:Issuer>" +
-        "<saml:NameID Format=\"" + this.options.identifierFormat + "\">" + options.nameID + "</saml:NameID>" +
-        "</samlp:LogoutRequest>";
-
-    request = "<samlp:LogoutRequest xmlns:samlp=\"urn:oasis:names:tc:SAML:2.0:protocol\"  " +
+    var request = "<samlp:LogoutRequest xmlns:samlp=\"urn:oasis:names:tc:SAML:2.0:protocol\"  " +
         "ID=\"" + id + "\" " +
         "Version=\"2.0\" " +
         "IssueInstant=\"" + instant + "\" " +
@@ -185,14 +184,7 @@ SAML.prototype.requestToUrl = function (request, operation, callback) {
             samlRequest.Signature = self.signRequest(querystring.stringify(samlRequest));
         }
 
-        // TBD. We should really include a proper RelayState here 
-        if (operation === 'logout') {
-            // in case of logout we want to be redirected back to the Meteor app.
-            var relayState = Meteor.absoluteUrl();
-        } else {
-            var relayState = self.options.relay_state;
-        }
-        target += querystring.stringify(samlRequest) + "&RelayState=" + relayState;
+        target += querystring.stringify(samlRequest) + "&RelayState=" + Meteor.absoluteUrl();
 
         if (Meteor.settings.debug >= 3) {
             console.log("[ SAML ] Target URL: " + target);
