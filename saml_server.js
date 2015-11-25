@@ -90,7 +90,8 @@ Accounts.registerLoginHandler(function (loginRequest) {
         });
 
         if (!user) {
-            throw new Error("[ SAML ] Failed authentication for " + loginResult.profile.email + " (unknown user)");
+            console.log("[ SAML ] Access forbidden for unknown user " + loginResult.profile.email);
+            throw new Meteor.Error("saml-unknown-user", "Unknown user (" + loginResult.profile.email + ")");
         }
 
 
@@ -124,12 +125,12 @@ Accounts.registerLoginHandler(function (loginRequest) {
             token: stampedToken.token
         };
 
-        console.log("[ SAML ] Successful authentication for " + loginResult.profile.email);
-
+        console.log("[ SAML ] Access granted to user " + loginResult.profile.email);
         return result
 
     } else {
-        throw new Error("[ SAML ] Profile contains no email address");
+        console.log("[ SAML ] Response contains no email address, something went wrong.");
+        throw new Meteor.Error("saml-fatal", "Something went wrong with your SSO request.");
     }
 });
 
