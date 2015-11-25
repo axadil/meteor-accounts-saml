@@ -85,7 +85,7 @@ SAML.prototype.generateAuthorizeRequest = function (req) {
         id = this.options.id;
 
     if (this.options.assertionConsumerServiceIndex !== undefined) {
-        var assertionConsumerService = 'AssertionConsumerServiceIndex=' + this.options.assertionConsumerServiceIndex;
+        var assertionConsumerService = 'AssertionConsumerServiceIndex="' + this.options.assertionConsumerServiceIndex + '"';
     } else {
         var assertionConsumerService = 'AssertionConsumerServiceURL="' + callbackUrl + '"';
     }
