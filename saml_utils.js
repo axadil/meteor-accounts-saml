@@ -8,6 +8,7 @@ var xmlbuilder = Npm.require('xmlbuilder');
 var xmlenc = Npm.require('xml-encryption');
 var xpath = xmlCrypto.xpath;
 var Dom = xmldom.DOMParser;
+var fs = require('fs');
 
 var prefixMatch = new RegExp(/(?!xmlns)^.*:/);
 
@@ -22,6 +23,7 @@ var stripPrefix = function (str) {
 };
 
 SAML.prototype.initialize = function (options) {
+    var self = this;
     if (!options) {
         options = {};
     }
@@ -46,6 +48,38 @@ SAML.prototype.initialize = function (options) {
         options.authnContext = "urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport";
     }
 
+    if (options.privateKeyFile) {
+        fs.access(options.privateKeyFile, fs.R_OK, function (err) {
+            if( ! err ) {
+                fs.readFile(options.privateKeyFile, function (err, data) {
+                    if ( ! err ) {
+                        self.privateKey = data;
+                    }
+                });
+            }
+        });
+    }
+
+    if (options.privateKey) {
+        self.privateKey = options.privateKey;
+    }
+    
+    if (options.privateCertFile) {
+        fs.access(options.privateCertFile, fs.R_OK, function (err) {
+            if( ! err ) {
+                fs.readFile(options.privateCertFile, function (err, data) {
+                    if ( ! err ) {
+                        self.signCert = data;
+                    }
+                });
+            }
+        });
+    }
+
+    if (options.privateCert) {
+        self.privateCert = options.privateCert;
+    }
+    
     return options;
 };
 
@@ -64,9 +98,9 @@ SAML.prototype.generateInstant = function () {
 };
 
 SAML.prototype.signRequest = function (xml) {
-    var signer = crypto.createSign('RSA-SHA1');
+    var signer = crypto.createSign('RSA-SHA256');
     signer.update(xml);
-    return signer.sign(this.options.privateKey, 'base64');
+    return signer.sign(this.privateKey, 'base64');
 }
 
 
@@ -179,7 +213,7 @@ SAML.prototype.requestToUrl = function (request, operation, callback) {
             SAMLRequest: base64
         };
 
-        if (self.options.privateCert) {
+        if (self.privateCert) {
             samlRequest.SigAlg = 'http://www.w3.org/2000/09/xmldsig#rsa-sha1';
             samlRequest.Signature = self.signRequest(querystring.stringify(samlRequest));
         }
