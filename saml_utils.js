@@ -54,8 +54,12 @@ SAML.prototype.initialize = function (options) {
                 fs.readFile(options.privateKeyFile, function (err, data) {
                     if ( ! err ) {
                         self.privateKey = data;
+                    } else {
+                        console.log('[ SAML ] Unable to open ' + options.privateKeyFile + ' : ' + err);
                     }
                 });
+            } else {
+                console.log('[ SAML ] Unable to open ' + options.privateKeyFile + ' : ' + err);
             }
         });
     }
@@ -70,8 +74,12 @@ SAML.prototype.initialize = function (options) {
                 fs.readFile(options.privateCertFile, function (err, data) {
                     if ( ! err ) {
                         self.privateCert = data;
+                    } else {
+                        console.log('[ SAML ] Unable to open ' + options.privateKeyFile + ' : ' + err);
                     }
                 });
+            } else {
+                console.log('[ SAML ] Unable to open ' + options.privateKeyFile + ' : ' + err);
             }
         });
     }
