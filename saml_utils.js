@@ -69,7 +69,7 @@ SAML.prototype.initialize = function (options) {
             if( ! err ) {
                 fs.readFile(options.privateCertFile, function (err, data) {
                     if ( ! err ) {
-                        self.signCert = data;
+                        self.privateCert = data;
                     }
                 });
             }
@@ -98,6 +98,10 @@ SAML.prototype.generateInstant = function () {
 };
 
 SAML.prototype.signRequest = function (xml) {
+    if (Meteor.settings.debug >= 2) {
+        console.log("[ SAML ] Signing request");
+    }
+
     var signer = crypto.createSign('RSA-SHA256');
     signer.update(xml);
     return signer.sign(this.privateKey, 'base64');
@@ -214,7 +218,7 @@ SAML.prototype.requestToUrl = function (request, operation, callback) {
         };
 
         if (self.privateCert) {
-            samlRequest.SigAlg = 'http://www.w3.org/2000/09/xmldsig#rsa-sha1';
+            samlRequest.SigAlg = 'http://www.w3.org/2000/09/xmldsig#rsa-sha256';
             samlRequest.Signature = self.signRequest(querystring.stringify(samlRequest));
         }
 
