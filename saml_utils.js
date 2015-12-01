@@ -8,7 +8,7 @@ var xmlbuilder = Npm.require('xmlbuilder');
 var xmlenc = Npm.require('xml-encryption');
 var xpath = xmlCrypto.xpath;
 var Dom = xmldom.DOMParser;
-var fs = Npm.require('fs');
+var fs = Npm.require('node-fs');
 
 var prefixMatch = new RegExp(/(?!xmlns)^.*:/);
 

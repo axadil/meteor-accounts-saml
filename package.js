@@ -22,5 +22,5 @@ Npm.depends({
     "xmlbuilder": "2.6.4",
     "querystring": "0.2.0",
     "xml-encryption": "0.7.2",
-    "fs": "0.1.7"
+    "node-fs": "0.1.7"
 });
