@@ -48,6 +48,9 @@
         }
       }
     },
+    "node-fs": {
+      "version": "0.1.7"
+    },
     "querystring": {
       "version": "0.2.0"
     },
