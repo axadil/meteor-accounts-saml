@@ -49,7 +49,7 @@ SAML.prototype.initialize = function (options) {
     }
 
     if (options.privateKeyFile) {
-        self.privateKey = fs.readFileSync(options.privateKeyFile);
+        self.privateKey = fs.readFileSync(options.privateKeyFile, 'ascii');
     }
 
     if (options.privateKey) {
@@ -57,7 +57,7 @@ SAML.prototype.initialize = function (options) {
     }
     
     if (options.privateCertFile) {
-        self.privateCert = fs.readFileSync(options.privateCertFile);
+        self.privateCert = fs.readFileSync(options.privateCertFile, 'ascii');
     }
 
     if (options.privateCert) {
