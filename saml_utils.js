@@ -489,10 +489,10 @@ SAML.prototype.generateServiceProviderMetadata = function (callbackUrl) {
     var keyDescriptor = null;
 
     if (!decryptionCert) {
-        decryptionCert = this.options.privateCert;
+        decryptionCert = this.privateCert;
     }  
 
-    if (this.options.privateKey) {
+    if (this.privateKey) {
         if (!decryptionCert) {
             throw new Error(
                 "[ SAML ] Missing decryptionCert while generating metadata for decrypting service provider");
