@@ -49,19 +49,7 @@ SAML.prototype.initialize = function (options) {
     }
 
     if (options.privateKeyFile) {
-        fs.access(options.privateKeyFile, fs.R_OK, function (err) {
-            if( ! err ) {
-                fs.readFile(options.privateKeyFile, function (err, data) {
-                    if ( ! err ) {
-                        self.privateKey = data;
-                    } else {
-                        console.log('[ SAML ] Unable to open ' + options.privateKeyFile + ' : ' + err);
-                    }
-                });
-            } else {
-                console.log('[ SAML ] Unable to open ' + options.privateKeyFile + ' : ' + err);
-            }
-        });
+        self.privateKey = fs.readFileSync(options.privateKeyFile);
     }
 
     if (options.privateKey) {
@@ -69,19 +57,7 @@ SAML.prototype.initialize = function (options) {
     }
     
     if (options.privateCertFile) {
-        fs.access(options.privateCertFile, fs.R_OK, function (err) {
-            if( ! err ) {
-                fs.readFile(options.privateCertFile, function (err, data) {
-                    if ( ! err ) {
-                        self.privateCert = data;
-                    } else {
-                        console.log('[ SAML ] Unable to open ' + options.privateKeyFile + ' : ' + err);
-                    }
-                });
-            } else {
-                console.log('[ SAML ] Unable to open ' + options.privateKeyFile + ' : ' + err);
-            }
-        });
+        self.privateCert = fs.readFileSync(options.privateCertFile);
     }
 
     if (options.privateCert) {
@@ -225,12 +201,13 @@ SAML.prototype.requestToUrl = function (request, operation, callback) {
             SAMLRequest: base64
         };
 
+        samlRequest.RelayState = Meteor.absoluteUrl();
         if (self.privateCert) {
-            samlRequest.SigAlg = 'http://www.w3.org/2000/09/xmldsig#rsa-sha256';
+            samlRequest.SigAlg = 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256'; // 'http://www.w3.org/2000/09/xmldsig#rsa-sha1'
             samlRequest.Signature = self.signRequest(querystring.stringify(samlRequest));
         }
 
-        target += querystring.stringify(samlRequest) + "&RelayState=" + Meteor.absoluteUrl();
+        target += querystring.stringify(samlRequest);
 
         if (Meteor.settings.debug >= 3) {
             console.log("[ SAML ] Target URL: " + target);
